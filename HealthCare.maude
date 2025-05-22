@@ -148,14 +148,14 @@ omod BPMN-ANALYSIS is
   	triggerENode?(9, 10)
   	< 1 : StartNode | name : "StartNode" >
   	< 2 : Process | name : "Patient arrives", resource : 1, status : inactive >
-    < 3 : Process | name : "Triage assessment", resource : 1, status : inactive > 
-    < 4 : Process | name : "Physical examination", resource : 1, status : inactive >
-    < 5 : Process | name : "Draw blood examples", resource : 1, status : inactive >
-    < 6 : Process | name : "Make diagnosis", resource : 1, status : inactive >
+    < 3 : Process | name : "Triage assessment", resource : 10, status : inactive > 
+    < 4 : Process | name : "Physical examination", resource : 100, status : inactive >
+    < 5 : Process | name : "Draw blood examples", resource : 10, status : inactive >
+    < 6 : Process | name : "Make diagnosis", resource : 10, status : inactive >
     < 7 : Process | name : "Perform surgery", resource : 1000, status : inactive >
     < 8 : Process | name : "Plan surgery", resource : 100, status : inactive >
     < 9 : Process | name : "Discharge patient", resource : 1, status : inactive >
-	< 10 : EndNode | name : "EndNode" > .
+		< 10 : EndNode | name : "EndNode" > .
 endom
 
 rewrite in BPMN-ANALYSIS :  p6 .
