@@ -1,0 +1,165 @@
+omod BPMN-CORE is
+  protecting STRING .
+  protecting INT .
+  protecting CONFIGURATION .
+ 
+  sorts Process Status .
+  ops inactive active done : -> Status [ctor] .
+  
+  *** class Process | id : Oid, name : String, resource : Int, status : Status .
+  *** class StartNode | id : Oid, name : String .
+  *** class EndNode | id : Oid, name : String .
+    
+  op Process   : -> Cid [ctor] .
+  op StartNode : -> Cid [ctor] .
+  op EndNode   : -> Cid [ctor] .
+
+  op name :_ : String -> Attribute [ctor] .
+  op resource :_ : Int -> Attribute [ctor].
+  op status :_ : Status -> Attribute [ctor].
+ 
+  subsort Nat < Oid .
+  
+  ops triggerSNode? triggerENode? triggerSeq? : Oid Oid -> Msg [ctor] .
+  ops triggerPar? triggerParJoin? triggerEx? triggerExJoin? : Oid Oid Oid Oid -> Msg [ctor].
+  ops triggerParJoin? triggerExJoin? : Oid Oid -> Msg [ctor].
+endom
+ 
+omod BPMN-SEMANTICS is
+  protecting BPMN-CORE .
+  vars n1 n2 n3 n4 : String .
+  
+  vars A B C D : Nat .
+  var N N1 N2 N3 N4 : Int .
+  
+  	rl [startNode] : triggerSNode?(A, B)
+  		< A : StartNode | name : n1 >
+		< B : Process | name : n2, resource : N, status : inactive >
+	  =>
+	  	< A : StartNode | name : n1 >
+		< B : Process | name : n2, resource : N, status : active > .
+		
+	rl [endNode] : triggerENode?(B, A)
+		< A : EndNode | name : n1 >
+		< B : Process | name : n2, resource : N, status : active >
+	  =>
+		< A : EndNode | name : n1 >
+		< B : Process | name : n2, resource : N, status : done > .
+ 
+	rl [sequence] : triggerSeq?(A, B)
+		< A : Process | name : n1, resource : N1, status : active >
+		< B : Process | name : n2, resource : N2, status : inactive >
+	  =>
+		< A : Process | name : n1, resource : N1, status : done >
+		< B : Process | name : n2, resource : N2, status : active > .
+  
+  
+	rl [parallel-split] : triggerPar?(A, B, C, D)
+	    < A : Process | name : n1, resource : N1, status : active >
+	    < B : Process | name : n2, resource : N2, status : inactive >
+	    < C : Process | name : n3, resource : N3, status : inactive >
+	    < D : Process | name : n4, resource : N4, status : inactive >
+	  =>
+	    triggerParJoin?(B, C)
+	    < A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : active >
+	    < C : Process | name : n3, resource : N3, status : active >
+	    < D : Process | name : n4, resource : N4, status : inactive > .
+  
+	rl [parallel-join] : triggerParJoin?(B, C)
+	    < A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : active >
+	    < C : Process | name : n3, resource : N3, status : active >
+	    < D : Process | name : n4, resource : N4, status : inactive >
+	  =>
+	    < A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : done >
+	    < C : Process | name : n3, resource : N3, status : done >
+	    < D : Process | name : n4, resource : N4, status : active > .
+	  
+	rl [exclusive-decision] : triggerEx?(A, B, C, D)
+	    < A : Process | name : n1, resource : N1, status : active >
+	    < B : Process | name : n2, resource : N2, status : inactive >
+	    < C : Process | name : n3, resource : N3, status : inactive >
+	    < D : Process | name : n4, resource : N4, status : inactive >
+	  =>
+	    if N2 < N3 then
+	    < A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : active >
+	    < C : Process | name : n3, resource : N3, status : inactive >
+	    < D : Process | name : n4, resource : N4, status : inactive >
+	    triggerExJoin?(B, D)
+	    else
+	    < A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : inactive >
+	    < C : Process | name : n3, resource : N3, status : active >
+	    < D : Process | name : n4, resource : N4, status : inactive >
+	    triggerExJoin?(C, D)
+	    fi .
+	    
+    rl [exclusive-join] : triggerExJoin?(C, D)
+    	< A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : inactive >
+	    < C : Process | name : n3, resource : N3, status : active >
+	    < D : Process | name : n4, resource : N4, status : inactive >
+      =>
+      	< A : Process | name : n1, resource : N1, status : done >
+	    < B : Process | name : n2, resource : N2, status : inactive >
+	    < C : Process | name : n3, resource : N3, status : done >
+	    < D : Process | name : n4, resource : N4, status : active > .
+endom
+
+omod BPMN-ANALYSIS is
+  protecting BPMN-SEMANTICS .
+ 
+  ops p3 p4 p5 p6 : -> Configuration .
+  eq p3 = triggerSNode?(1, 2)
+  	triggerSeq?(2, 3)
+  	triggerENode?(3, 4)
+  	< 1 : StartNode | name : "StartNode" >
+    < 2 : Process | name : "Patient arrives", resource : 1, status : inactive >
+    < 3 : Process | name : "Triage assessment", resource : 1, status : inactive >
+   	< 4 : EndNode | name : "EndNode" > .
+   	
+  eq p4 = triggerSNode?(1, 2)
+  	triggerPar?(2, 3, 4, 5) 
+  	triggerENode?(5, 6)
+  	< 1 : StartNode | name : "StartNode" >
+  	< 2 : Process | name : "Patient arrives", resource : 1, status : inactive >
+    < 3 : Process | name : "Triage assessment", resource : 1000, status : inactive >
+    < 4 : Process | name : "Physical examination", resource : 10, status : inactive >
+    < 5 : Process | name : "Draw blood examples", resource : 1, status : inactive >
+    < 6 : EndNode | name : "EndNode" > .
+    
+  eq p5 = triggerSNode?(1, 2)
+  	triggerEx?(2, 3, 4, 5) 
+  	triggerENode?(5, 6)
+  	< 1 : StartNode | name : "StartNode" >
+  	< 2 : Process | name : "Triage assessment", resource : 1, status : inactive >
+    < 3 : Process | name : "Physical examination", resource : 1000, status : inactive >
+    < 4 : Process | name : "Draw blood examples", resource : 10, status : inactive >
+    < 5 : Process | name : "Make diagnosis", resource : 1, status : inactive >
+    < 6 : EndNode | name : "EndNode" > .
+    
+  eq p6 = triggerSNode?(1, 2)
+  	triggerSeq?(2, 3)
+  	triggerPar?(3, 4, 5, 6) 
+  	triggerEx?(6, 7, 8, 9) 
+  	triggerENode?(9, 10)
+  	< 1 : StartNode | name : "StartNode" >
+  	< 2 : Process | name : "Patient arrives", resource : 1, status : inactive >
+    < 3 : Process | name : "Triage assessment", resource : 1, status : inactive > 
+    < 4 : Process | name : "Physical examination", resource : 1, status : inactive >
+    < 5 : Process | name : "Draw blood examples", resource : 1, status : inactive >
+    < 6 : Process | name : "Make diagnosis", resource : 1, status : inactive >
+    < 7 : Process | name : "Perform surgery", resource : 1000, status : inactive >
+    < 8 : Process | name : "Plan surgery", resource : 100, status : inactive >
+    < 9 : Process | name : "Discharge patient", resource : 1, status : inactive >
+	< 10 : EndNode | name : "EndNode" > .
+endom
+
+rewrite in BPMN-ANALYSIS :  p6 .
+*** rewrite in BPMN-ANALYSIS :  p4 .
+*** rewrite in BPMN-ANALYSIS :  p5 .
+*** rewrite in BPMN-ANALYSIS :  p6 .
+*** rewrite [1] in BPMN-ANALYSIS :  p6 .
